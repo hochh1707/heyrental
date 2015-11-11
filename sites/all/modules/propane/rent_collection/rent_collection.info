@@ -1,0 +1,5 @@
+name = rent collection
+description = creates rent due notice and late notices
+core = 7.x
+dependencies[] = twilio
+package = propane

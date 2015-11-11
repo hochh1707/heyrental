@@ -1,0 +1,77 @@
+<?php
+/**
+ * Creates entry nodes that correspond to rent payments.
+ * User selects rent payments received on a VBO view, then the data saved to a text file, retrieved,
+ * and this module creates the entry nodes for management fees.
+ */
+  
+
+/**
+  * Implements hook_views_pre_render().
+  */
+  function propane_views_pre_render($view){
+    if($view->name == 'view_management_fees'){
+      //serialize and save contents of array to file so that it can be accessed later
+      $ser_view = serialize($view->result);
+      $path_view = 'sites/default/files/blerg.txt';
+      unlink($path_view);
+      $file_view = fopen($path_view,'w');
+      fputs($file_view,$ser_view);
+      fclose($file_view);
+    }
+  }
+  
+  
+  /**
+  * Implements hook_rules_action_info().
+  */
+  function management_fees_action_info(){
+      return array(
+      'create_management_fees' => array(
+        'type' => 'node',
+        'label' => t('Create management fee nodes'),
+        'group' => t('Custom'),
+        'configurable' => FALSE,
+        'triggers' => array('any'),
+      ),
+      );
+  }
+   
+
+  function create_management_fees($node){
+    //open file, read contents, unserialize
+    $path_view = 'sites/default/files/blerg.txt';
+    $file_view = fopen($path_view,'r');
+
+	//If the file does not exist, fail.
+    if(!$file_view){
+      drupal_set_message('Unable to retrieve data file. Management fees failed.');
+      return;
+    }
+    
+    $file_size = filesize($path_view);
+    $contents_view = fread($file_view,$file_size);
+    $array_view = unserialize($contents_view);
+    fclose($file_view);
+
+    if(!$array_view){
+      drupal_set_message('Array empty. Management fees failed.');
+      return;
+    }
+    
+    foreach($array_view as $j){
+      if($j->nid == $node->vid){
+        global $user;
+        $entry_node = new stdClass();
+        $entry_node->type = 'entry';
+        $entry_node->status = 1;
+        $entry_node->field_type_entry['und'][0]['tid'] = 14;
+        $entry_node->field_date_entry['und'][0]['value'] = date('Ymd');
+        $entry_node->field_amount_entry['und'][0]['value'] = 0.1 * $j->field_field_amount_entry[0]['raw']['value'];
+        $entry_node->field_category_entry['und'][0]['tid'] = 32;
+        $entry_node->field_property_entry['und'][0]['target_id'] = $j->field_field_property_apar[0]['raw']['target_id'];
+        $entry_node->uid = $user->uid;
+        node_save($entry_node);
+      }
+    }
+  }

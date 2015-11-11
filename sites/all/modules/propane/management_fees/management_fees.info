@@ -1,0 +1,5 @@
+name = management fees
+description = creates management fee nodes
+core = 7.x
+package = propane
+module_load_include('inc', 'management_fees', 'management_fees.rules');

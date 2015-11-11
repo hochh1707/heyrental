@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * @file
+ * Install and uninstall functions for the twiml module.
+ *
+ * Since we have moved this module out of the original code base we have to
+ * manually install and uninstall the schema in the event the user already
+ * had the tables in the database.
+ */
+
+/**
+ * Custom function to return our schema.
+ */
+function twilio_twiml_get_schema() {
+  $schema['twilio_twiml'] = array(
+    'fields' => array(
+      'twiml_id' => array(
+        'description' => 'The machine-readable name of this TwiML.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => 'The name of this TwiML.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'description' => array(
+        'description' => 'The description of this TwiML.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'data' => array(
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+        'description' => 'The XML twiml config data.',
+      ),
+    ),
+    'primary key' => array('twiml_id'),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function twilio_twiml_install() {
+  // Get our schema
+  $schema = twilio_twiml_get_schema();
+  // Create the tables
+  foreach ($schema as $name => $table) {
+    // Only create the DB tables if they don't already exist.
+    if (!db_table_exists($name)) {
+      db_create_table($name, $table);
+    }
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function twilio_twiml_uninstall() {
+  $schema = twilio_twiml_get_schema();
+  // Create the tables
+  foreach ($schema as $name => $table) {
+    if (db_table_exists($name)) {
+      db_drop_table($name);
+    }
+  }
+}

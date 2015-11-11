@@ -1,0 +1,6 @@
+name = incoming
+description = handles incoming MMS and SMS messages via Twilio
+core = 7.x
+dependencies[] = twilio
+package = propane
+module_load_include('inc', 'incoming', 'incoming.rules');

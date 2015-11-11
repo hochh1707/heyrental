@@ -1,0 +1,524 @@
+<?php
+
+/**
+ * @file
+ * Twilio module
+ */
+
+/**
+ * Define constants for twilio
+ */
+define('TWILIO_LIBRARY', 'twilio');
+define('TWILIO_USER_PENDING', 1);
+define('TWILIO_USER_CONFIRMED', 2);
+define('TWILIO_USER_MAX_CHARS', 140);
+define('TWILIO_API_VERSION', '2010-04-01');
+define('TWILIO_ADMIN_PATH', 'admin/config/system/twilio');
+define('TWILIO_SMS_LONG_MULTIPLE', 0);
+define('TWILIO_SMS_LONG_TRUNCATE', 1);
+define('TWILIO_DEFAULT_COUNTRY_CODE', 1);
+
+/**
+ * Load module include files.
+ */
+module_load_include('inc', 'twilio', 'twilio.user');
+module_load_include('inc', 'twilio', 'twilio.codes');
+module_load_include('inc', 'twilio', 'twilio.actions');
+
+/**
+ * Implements hook_menu().
+ */
+function twilio_menu() {
+  $items[TWILIO_ADMIN_PATH] = array(
+    'title' => 'Twilio',
+    'description' => 'Administer your twilio settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twilio_admin_form'),
+    'access arguments' => array('administer twilio'),
+    'file' => 'twilio.admin.inc',
+  );
+  $items[TWILIO_ADMIN_PATH . '/settings'] = array(
+    'title' => 'Twilio Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items[TWILIO_ADMIN_PATH . '/test'] = array(
+    'title' => 'Send Test SMS message',
+    'description' => 'Test your Twilio SMS functionality',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('twilio_admin_test_form'),
+    'access arguments' => array('administer twilio'),
+    'file' => 'twilio.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 0,
+  );
+  $items['twilio/sms'] = array(
+    'page callback' => 'twilio_receive_message',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['twilio/voice'] = array(
+    'page callback' => 'twilio_receive_voice',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function twilio_menu_alter(&$callbacks) {
+  $callbacks['user/%user_category/edit/twilio']['page callback'] = 'twilio_user_settings';
+  $callbacks['user/%user_category/edit/twilio']['module'] = 'twilio';
+  $callbacks['user/%user_category/edit/twilio']['page arguments'] = array(1);
+  $callbacks['user/%user_category/edit/twilio']['file'] = 'twilio.pages.inc';
+  $callbacks['user/%user_category/edit/twilio']['access callback'] = array('twilio_edit_access');
+}
+
+/**
+ * Implements hook_permission().
+ */
+function twilio_permission() {
+  return array(
+    'edit own sms number' => array(
+      'title' => t('Edit own number'),
+      'description' => t('Edit your own phone number'),
+    ),
+    'administer twilio' => array(
+      'title' => t('Administer Twilio'),
+      'description' => t('Administer Twilio confguration'),
+    ),
+  );
+}
+
+/**
+ * Access callback for twilio account editing.
+ */
+function twilio_edit_access($account) {
+  return user_edit_access($account) && user_access('edit own sms number');
+}
+
+/**
+ * Implements hook_libraries_info().
+ */
+function twilio_libraries_info() {
+  $libraries['twilio'] = array(
+    'name' => 'Twilio library',
+    'vendor url' => 'http://www.twilio.com',
+    'download url' => 'https://github.com/twilio/twilio-php/tarball/latest',
+    'path' => 'Services',
+    'version' => '2010-04-01',
+    'files' => array(
+      'php' => array(
+        'Twilio.php',
+      ),
+    ),
+  );
+  return $libraries;
+}
+
+/**
+ * Sends a message via Twilio.
+ *
+ * @param string $number
+ *   The phone number of the recipient
+ *
+ * @param string $message
+ *   The message to send to the recipient
+ *
+ * @param string $country
+ *   The country code for the phone number
+ *
+ * @param string $media
+ *   Public facing url to an media file
+ *
+ * @param array $options
+ *   Additonal options (not currently used)
+ *
+ * @return bool
+ *   TRUE or FALSE if the message was successfully sent.
+ */
+function twilio_send($number, $message, $country = TWILIO_DEFAULT_COUNTRY_CODE, $media = NULL, $options = array()) {
+  switch (variable_get('twilio_long_sms', TWILIO_SMS_LONG_MULTIPLE)) {
+    case TWILIO_SMS_LONG_TRUNCATE:
+      // Truncate the message to 160 characters.
+      $message_truncated = substr($message, 0, 160);
+      $response = twilio_command('sendmsg', array(
+        'country' => $country,
+        'number' => $number,
+        'message' => $message_truncated,
+        'media' => $media,
+        'options' => $options,
+      ));
+      break;
+
+    case TWILIO_SMS_LONG_MULTIPLE:
+      // Break up the message into 160 character chunks and send multiple.
+      $iterator = ceil(strlen($message) / 160);
+      for ($i = 0; $i < $iterator; $i++) {
+        $sms = array(
+          'country' => $country,
+          'number' => $number,
+          'message' => substr($message, $i * 160, 160),
+          'options' => $options,
+        );
+        // Attach the media array only to the first message.
+        if ($i === 0) {
+          $sms['media'] = $media;
+        }
+        $response = twilio_command('sendmsg', $sms);
+      }
+      break;
+  }
+  return $response;
+}
+
+/**
+ * Executes a command using the Twilio REST API.
+ *
+ * @param string $command
+ *   The Twilio API command to execute.
+ *
+ * @param array $data
+ *   The array of data and configuration used by some command being executed.
+ *
+ * @return bool
+ *   TRUE if the command executed correctly, FALSE otherwise.
+ */
+function twilio_command($command = '', $data = array()) {
+
+  // Try to load the library and check if that worked.
+  if (($library = libraries_load(TWILIO_LIBRARY)) && !empty($library['loaded'])) {
+
+    // Set our account_sid, auth_token, and number.
+    $account_sid = variable_get('twilio_account', FALSE);
+    $auth_token = variable_get('twilio_token', FALSE);
+    $number = variable_get('twilio_number', FALSE);
+
+    // If we don't have one of our twilio variables don't bother doing anything.
+    if (!$account_sid || !$auth_token || !$number) {
+      return FALSE;
+    }
+
+    // Twilio REST API version.
+    $api_version = !empty($data['options']['api_version']) ? $data['options']['api_version'] : TWILIO_API_VERSION;
+
+    switch ($api_version) {
+      case '2010-04-01':
+        switch ($command) {
+          case 'sendmsg':
+            // Instantiate a new Twilio Rest Client.
+            $client = new Services_Twilio($account_sid, $auth_token);
+            $sms = array(
+              'To' => '+' . $data['country'] . $data['number'],
+              'From' => $number,
+              'Body' => $data['message'],
+            );
+            if (!empty($data['media'])) {
+              $sms['MediaUrl'] = $data['media'];
+            }
+            try {
+              $response = $client->account->messages->create($sms);
+              return TRUE;
+            }
+            catch (Exception $e){
+              watchdog('Twilio', $e->getMessage(), array(), WATCHDOG_ERROR);
+              $link = l($e->getInfo(), $e->getInfo());
+              $message = t('Twilio has returned the error: "@error". For more information visit the following link. !link', array('@error' => $e->getMessage(), '!link' => $link));
+              drupal_set_message($message, 'error');
+            }
+            if (!empty($response->status) && $response->status == 'failed') {
+              watchdog('Twilio', 'An unkown error occured during the HTTP request');
+            }
+            break;
+
+          case 'validate':
+            $validator = new Services_Twilio_RequestValidator($auth_token);
+            $type = !empty($data['type']) ? $data['type'] : 'sms';
+            $url = $GLOBALS['base_url'] . '/twilio/' . $type;
+            $signature = $_SERVER["HTTP_X_TWILIO_SIGNATURE"];
+            $post_vars = $_POST;
+            if ($validator->validate($signature, $url, $post_vars)) {
+              watchdog('Twilio', 'Incoming SMS message validated');
+              return TRUE;
+            }
+            else {
+              watchdog('Twilio', 'Incoming SMS could not be validated');
+            }
+            break;
+
+        }
+        break;
+
+      case '2008-08-01':
+        switch ($command) {
+          case 'sendmsg':
+            // Instantiate a new Twilio Rest Client.
+            $client = new TwilioRestClient($account_sid, $auth_token);
+            try {
+              $response = $client->request("/$api_version/Accounts/$account_sid/SMS/Messages",
+                "POST", array(
+                  "To" => '+' . $data['country'] . $data['number'],
+                  "From" => $number,
+                  "Body" => $data['message'],
+                )
+              );
+              return TRUE;
+            }
+            catch (Exception $e) {
+              watchdog('Twilio', $e, array(), WATCHDOG_ERROR);
+            }
+            if ($response->IsError) {
+              watchdog('Twilio', 'An error occured during the HTTP request: @error', array('@error' => $response->ErrorMessage));
+            }
+            break;
+
+        }
+        break;
+    }
+  }
+  else {
+    watchdog('Twilio', 'The twilio library was not loaded properly');
+  }
+  return FALSE;
+}
+
+/**
+ * Callback for incoming messages.
+ */
+function twilio_receive_message() {
+  if (!empty($_REQUEST['From']) && !empty($_REQUEST['Body']) && !empty($_REQUEST['ToCountry']) && twilio_command('validate')) {
+    $codes = twilio_country_codes();
+    $message_code = twilio_get_country_short_codes($_REQUEST['ToCountry']);
+    if (empty($codes[$message_code])) {
+      watchdog('Twilio', 'A message was blocked from the country @country, due to your currrent country code settings.', array('@country' => $_REQUEST['ToCountry']));
+      return;
+    }
+    $number = check_plain(str_replace('+' . $message_code, '', $_REQUEST['From']));
+    $number_twilio = !empty($_REQUEST['To']) ? check_plain(str_replace('+', '', $_REQUEST['To'])) : '';
+    $message = check_plain(htmlspecialchars_decode($_REQUEST['Body'], ENT_QUOTES));
+    // @todo: Support more than one media entry.
+    $media = !empty($_REQUEST['MediaUrl0']) ? $_REQUEST['MediaUrl0'] : '';
+    $options = array();
+    // Add the receiver to the options array.
+    if (!empty($_REQUEST['To'])) {
+      $options['receiver'] = check_plain($_REQUEST['To']);
+    }
+    watchdog('Twilio', 'An SMS message was sent from @number containing the message "@message"', array('@number' => $number, '@message' => $message));
+    twilio_sms_incoming($number, $number_twilio, $message, $media, $options);
+  }
+}
+
+/**
+ * Invokes twilio_sms_incoming hook.
+ *
+ * @param string $number
+ *   The sender's mobile number.
+ *
+ * @param string $number_twilio
+ *   The twilio recipient number.
+ *
+ * @param string $message
+ *   The content of the text message.
+ *
+ * @param string $media
+ *   The absolute media url for a media file attatched to the message.
+ */
+function twilio_sms_incoming($number, $number_twilio, $message, $media = array(), $options = array()) {
+  // Build our SMS array to be used by our hook and rules event.
+  $sms = array(
+    'number' => $number,
+    'number_twilio' => $number_twilio,
+    'message' => $message,
+    'media' => $media,
+  );
+  // Invoke a hook for the incoming message so other modules can do things.
+  module_invoke_all('twilio_sms_incoming', $sms, $options);
+  if (module_exists('rules')) {
+    rules_invoke_event('twilio_sms_incoming', $sms);
+  }
+}
+
+/**
+ * Callback for incoming voice calls.
+ */
+function twilio_receive_voice() {
+  if (!empty($_REQUEST['From']) && twilio_command('validate', array('type' => 'voice'))) {
+    $number = check_plain(str_replace('+1', '', $_REQUEST['From']));
+    $number_twilio = !empty($_REQUEST['To']) ? check_plain(str_replace('+', '', $_REQUEST['To'])) : '';
+    $options = array();
+    if (!empty($_REQUEST['To'])) {
+      $options['receiver'] = check_plain($_REQUEST['To']);
+    }
+    watchdog('Twilio', 'A voice call from @number was received.', array('@number' => $number));
+    twilio_voice_incoming($number, $number_twilio, $options);
+  }
+}
+
+/**
+ * Invokes twilio_voice_incoming hook.
+ *
+ * @param string $number
+ *   The sender's mobile number.
+ */
+function twilio_voice_incoming($number, $number_twilio, $options = array()) {
+  $voice = array(
+    'number' => $number,
+    'number_twilio' => $number_twilio,
+  );
+  // Invoke a hook for the incoming message so other modules can do things.
+  module_invoke_all('twilio_voice_incoming', $voice, $options);
+  if (module_exists('rules')) {
+    rules_invoke_event('twilio_voice_incoming', $voice);
+  }
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function twilio_token_info() {
+  $info['types']['sms'] = array(
+    'name' => t('SMS'),
+    'description' => t('Tokens related to an SMS message.'),
+  );
+  $info['types']['voice'] = array(
+    'name' => t('Voice call'),
+    'description' => t('Tokens related to a voice call.'),
+  );
+
+  // Tokens for an SMS message.
+  $info['tokens']['sms']['number'] = array(
+    'name' => t("Number"),
+    'description' => t("The phone number of the incoming SMS."),
+  );
+  $info['tokens']['sms']['number_twilio'] = array(
+    'name' => t("Twilio Number"),
+    'description' => t("The Twilio number that received the message."),
+  );
+  $info['tokens']['sms']['message'] = array(
+    'name' => t("Message"),
+    'description' => t("The message of the incoming SMS."),
+  );
+  $info['tokens']['sms']['media'] = array(
+    'name' => t("Media"),
+    'description' => t("The media attached to the incoming SMS."),
+  );
+  // Tokens for a voice call.
+  $info['tokens']['voice']['number'] = array(
+    'name' => t("Number"),
+    'description' => t("The phone number of the incoming voice call."),
+  );
+  $info['tokens']['voice']['number_twilio'] = array(
+    'name' => t("Twilio Number"),
+    'description' => t("The Twilio number that received the voice call."),
+  );
+  return $info;
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function twilio_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  // SMS tokens.
+  if ($type == 'sms' && !empty($data['sms'])) {
+    $sms = $data['sms'];
+    $replacements = array();
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'number':
+          $replacements[$original] = $sms['number'];
+          break;
+
+        case 'number_twilio':
+          $replacements[$original] = $sms['number_twilio'];
+          break;
+
+        case 'message':
+          $replacements[$original] = $sms['message'];
+          break;
+
+        case 'media':
+          $replacements[$original] = $sms['media'];
+          break;
+
+      }
+    }
+    return $replacements;
+  }
+  // Voice call tokens.
+  if ($type == 'voice' && !empty($data['voice'])) {
+    $voice = $data['voice'];
+    $replacements = array();
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'number':
+          $replacements[$original] = $voice['number'];
+          break;
+
+        case 'number_twilio':
+          $replacements[$original] = $voice['number_twilio'];
+          break;
+      }
+    }
+    return $replacements;
+  }
+}
+
+/**
+ * Checks if a given phone number already exists in the database.
+ *
+ * @param string $number
+ *   The sender's mobile number.
+ *
+ * @result boolean
+ *   TRUE if it exists, FALSE otherwise
+ */
+function twilio_verify_duplicate_number($number) {
+  $result = db_select('twilio_user', 't')
+    ->fields('t')
+    ->condition('t.number', $number)
+    ->execute()
+    ->fetchAssoc();
+  if ($result['number'] == $number) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Determines if a number is associated with a user account.
+ *
+ * @param int $number
+ *   The phone number we are searching for
+ * @param bool $return_user
+ *   Boolean flag to return a user object if TRUE
+ *
+ * @results bool
+ *   TRUE or FALSE based on query
+ */
+function twilio_verify_number($number, $return_user = FALSE) {
+  $result = db_select('twilio_user', 't')
+    ->fields('t')
+    ->condition('t.number', $number)
+    ->condition('t.status', TWILIO_USER_CONFIRMED)
+    ->execute()
+    ->fetchAssoc();
+  if (!empty($result['uid'])) {
+    if ($return_user) {
+      return user_load($result['uid']);
+    }
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function twilio_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'twilio'),
+  );
+}

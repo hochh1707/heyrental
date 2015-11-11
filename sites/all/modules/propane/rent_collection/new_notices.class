@@ -1,0 +1,210 @@
+<?php
+
+class new_notices{
+
+  public function pre_notice_checks($type_notice){
+    
+    if($type_notice == 'rent_due'){
+      drupal_set_message('create notices for rent due');
+    }elseif($type_notice == 'late1'){
+      drupal_set_message('create notices for late 1');
+    }elseif($type_notice == 'late2'){
+      drupal_set_message('create notices for late 2');
+    }else{
+      drupal_set_message('notice type not selected');
+      return;
+    }
+    
+    //you can only make rent due during 25th-31st of the month, and
+    //you can only make late1 and late2 during 1st-15th of the month
+    $validate_ok = $this->validate_time_period($type_notice);
+    if($validate_ok == 0){
+      return;
+    }
+    
+      //1. get an array of apar (receivables) nodes that already exist, if any
+      //2. try to get lease info
+      //3. if no lease info, fail
+      //4. report number of leases and number of apar (receivables) nodes
+      //5. make apar (receivables) nodes as required
+      //6. report number of leases and number of apar (receivables) nodes again
+      //7. check if number of receivables match number of leases, if not, fail
+      //8. if receivables exist, go to appropriate view
+      
+      //1.
+      $target_my = $this->target_month_year($type_notice);
+      $array_apar = $this->get_array_apar($type_notice,$target_my);
+      //2.
+      $array_leases = $this->get_lease_info($type_notice);
+      //3.
+      if(count($array_leases) < 1){
+        drupal_set_message('failed to retrieve leases data');
+        return;
+      }
+      //4.
+      $this->report_counts($array_apar,$array_leases);
+      //5.
+      if(count($array_leases) > 0){
+        $this->make_apar($array_leases,$array_apar,$type_notice,$target_my);
+      }
+      //6.
+      $array_apar = $this->get_array_apar($type_notice,$target_my);
+      $this->report_counts($array_apar,$array_leases);
+
+      //7.
+      if(count($array_apar) < count($array_leases)){
+        drupal_set_message('there was a problem creating receivables');
+        return;
+      //8.
+      } elseif (count($array_apar) >= count($array_leases)) {
+        $arg = $target_my[1] . $target_my[0] . '01';
+        if($type_notice == 'rent_due'){
+          drupal_goto('create-notices-rent-due/' . $arg);
+        }elseif($type_notice == 'late1'){
+          drupal_goto('create-notices-late1/' . $arg);
+        }elseif($type_notice == 'late2'){
+          drupal_goto('create-notices-late2/' . $arg);
+        }
+      }else{
+        drupal_set_message('some problem with receivables');
+        return;
+      }
+  }
+
+  
+  private function report_counts($array_apar,$array_leases){
+    drupal_set_message('count apar: ' . count($array_apar));
+    drupal_set_message('count leases: ' . count($array_leases));
+  }
+  
+
+  private function get_array_apar($type_notice,$target_my){
+    $arg = $target_my[1] . $target_my[0] . '01';
+    $array_apar = views_get_view_result('get_array_apar','default',$arg);
+
+  return $array_apar;
+  }
+
+
+  public function target_month_year($type_notice){
+
+    //set month and year to create late notices for
+    if($type_notice == 'late1' or $type_notice == 'late2'){
+      $month_target = date('m');
+      $year_target = date('Y');
+      $month_target1 = date('n');
+    }
+  
+    //set month and year to create rent due notices for
+    if($type_notice == 'rent_due' and date('n') == 12){
+      $month_target = '01';
+      $year_target = date('Y') + 1;
+      $month_target1 = '1';
+    }elseif($type_notice == 'rent_due'){
+      $month_target = date('m') + 1;
+      $year_target = date('Y');
+      $month_target1 = date('n') + 1;
+    }
+
+    $target_my = array($month_target,$year_target,$month_target1);
+  return $target_my;
+  }
+  
+  
+  private function validate_time_period($type_notice){
+    $validate_ok = 1;
+
+    if(date('j') < 25 and $type_notice == 'rent_due'){
+      $validate_ok = 0;
+      drupal_set_message('you can only make rent due notices from the 25th-31st');
+    }elseif(date('j') > 24 and $type_notice <> 'rent_due'){
+      $validate_ok = 0;
+      drupal_set_message('you can only send late notices from the 1st to the 31st');
+    }
+
+  return $validate_ok;
+  }
+
+  
+  private function get_lease_info($type_notice){
+  
+    //get an array of all the leases where the current logged in user is a landlord
+    $array_lease_view = views_get_view_result('view_my_leases');
+
+    if(count($array_lease_view) < 1){
+      drupal_set_message('there do not seem to be any leases');
+      return;
+    }
+    
+    $array_lease_info = array();
+
+    //start loop through leases here
+    foreach($array_lease_view as $lease){
+
+      //if the lease is currently in effect, put the data in the array
+      if($lease->field_field_active_lease_1[0]['raw']['value'] == 1){
+        $amount = 0;
+        $amount += $lease->field_field_payment_lease[0]['raw']['value'];
+        $amount += $lease->field_field_payment_monthly_insurance[0]['raw']['value'];
+        $amount += $lease->field_field_payment_monthly_tax[0]['raw']['value'];
+
+        $array_lease_info[] = array(
+        'type' => 31,
+        'amount' => $amount,
+        'category' => 22,
+        'property' => $lease->field_field_property_lease[0]['raw']['target_id'],
+        'description' => 'house payment',
+        );
+      }
+    }
+
+    return $array_lease_info;
+  }
+  
+  
+  private function make_apar($array_leases,$array_apar,$type_notice,$target_my){
+    if(count($array_leases) < 1){
+      drupal_set_message('$array_lease_info is empty');
+      return;
+    }
+
+    //get the date that will be the due date for the rent payments
+    $date_entry = $target_my[1] . '-' . $target_my[0] . '-01';
+    
+    //for each lease in array, create a receivables (ap-ar) node if there is not one already
+    foreach($array_leases as $lease){
+      //see if there is an apar node that matches the lease
+      //if no node exists, make one
+      //otherwise, do nothing
+      if($this->check_exist_apar_single($lease['property'],$array_apar) == 0){
+        $node = new stdClass();
+        $node->type = 'ap_ar';
+        node_object_prepare($node);
+        $node->language = LANGUAGE_NONE;
+        $node->status = 1;
+        $node->promote = 0;
+        $node->comment = 2;
+        $node->field_type_apar['und'][0]['tid'] = $lease['type'];
+        $node->field_date_entry['und'][0]['value'] = $date_entry;
+        $node->field_amount_apar['und'][0]['value'] = $lease['amount'];
+        $node->field_category_apar['und'][0]['tid'] = $lease['category'];
+        $node->field_property_apar['und'][0]['target_id'] = $lease['property'];
+        $node->field_description_apar['und'][0]['value'] = $lease['description'];
+        $node = node_submit($node);
+        node_save($node);
+      }
+    }
+  }
+
+
+  private function check_exist_apar_single($prop_lease,$array_apar){
+  $exist_apar = 0;
+    foreach($array_apar as $apar){
+      if($prop_lease == $apar->node_field_data_field_property_apar_nid){
+        $exist_apar = 1;
+        continue;
+      }
+    }
+  return $exist_apar;
+  }
+}

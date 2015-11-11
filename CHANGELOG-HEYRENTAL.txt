@@ -1,0 +1,35 @@
+** 10-29-2015
+- View - management fees
+- deleted old view
+- Cloned payments due view
+- Add VBO
+- Test create management fees rule
+
+** 10-28-2015
+- View - report, expenses - added filter by current user = landlord
+- View - report, income - added filter by current user = landlord
+
+- View - payments due - added filter active_lease = 1
+
+- Views module / date module - got error 
+- Warning: Illegal string offset 'month' in drupal_array_set_nested_value() (line 6711 of /home/hexane1/heyrental.com/includes/common.inc).
+- Corrected error using patch to form.inc (https://www.drupal.org/node/2313517)
+
+** 10-27-2015
+- View - get_aray_apar - The contextual filter used to be on the field date_apar which is the one I got rid of. I created the view again, this time for date_entry.
+
+- View - create notices - rent due - added filter by current user = landlord
+- view - create notices - rent due - added contextual filter by date_entry
+
+- View - create notices - late 1 - added filter current user = landlord
+- view - create notices - late 1 - added contextual filter by date_entry
+
+- View - create notices - late 2 - added filter current user = landlord
+- view - create notices - late 2 - added contextual filter by date_entry
+
+- new_notices.class - call create notices views with date_entry argument
+
+
+** 10-26-2015
+- View - payments due - had an error and now it seemed to have gone away for the time being
+

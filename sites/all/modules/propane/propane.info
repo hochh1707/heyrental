@@ -1,0 +1,4 @@
+name = propane
+description = Custom module for heyrental
+core = 7.x
+package = propane

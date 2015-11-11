@@ -1,0 +1,133 @@
+<?php
+/**
+ * @file
+ * Install and uninstall functions for the twilio module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function twilio_install() {
+  $t = get_t();
+  drupal_set_message($t("Twilio module settings are available under !link",
+    array( '!link' => l($t('Administer > Site configuration > Twilio'),  'admin/config/system/twilio'))
+  ));
+}
+
+/**
+ * Implements hook_install().
+ */
+function twilio_uninstall() {
+  // Remove all the twilio variables.
+  variable_del('twilio_account');
+  variable_del('twilio_number');
+  variable_del('twilio_path');
+  variable_del('twilio_registration_form');
+  variable_del('twilio_token');
+  variable_del('twilio_area_codes');
+}
+
+/**
+ * Implements hook_schema().
+ */
+function twilio_schema() {
+  $schema['twilio_user'] = array(
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'number' => array(
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 32,
+      ),
+      'country' => array(
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 32,
+        'default' => '1',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'code' => array(
+        'type' => 'varchar',
+        'not null' => FALSE,
+        'length' => 16,
+        'default' => ''
+      ),
+    ),
+    'primary key' => array('number'),
+    'indexes' => array('uid' => array('uid')),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function twilio_requirements($phase) {
+  $requirements = array();
+  if ($phase == 'runtime') {
+    // Ensure translations do not break at install time
+    $t = get_t();
+    $requirements['twilio']['title'] = $t('Twilio library');
+    if (module_exists('libraries') && function_exists('libraries_detect')) {
+      $library = libraries_detect(TWILIO_LIBRARY);
+      $twilio_installed = ($library['installed']) ? TRUE : FALSE;
+    }
+    else {
+      $twilio_installed = FALSE;
+    }
+    if ($twilio_installed) {
+      $requirements['twilio']['value'] = $t('Installed API version !version', array('!version' => $library['version']));
+      $requirements['twilio']['severity'] = REQUIREMENT_OK;
+    }
+    else {
+      $requirements['twilio']['value'] = $t('Not installed');
+      $requirements['twilio']['severity'] = REQUIREMENT_ERROR;
+      $requirements['twilio']['description'] = $t('Please download the Twilio PHP library from !link.', array('!link' => l('http://www.twilio.com/docs/libraries', 'http://www.twilio.com/docs/libraries')));
+    }
+  }
+  return $requirements;
+}
+
+/**
+ * Create new database table {twilio_twiml}.
+ */
+function twilio_update_7000() {
+  // Get the schema array we've defined.
+  $schema = twilio_schema();
+  // Create the table.
+  db_create_table('twilio_twiml', $schema['twilio_twiml']);
+}
+
+/**
+ * Add 'country' column to {twilio_user} table
+ */
+function twilio_update_7001() {
+  $spec = array(
+    'type' => 'varchar',
+    'not null' => TRUE,
+    'length' => 32,
+    'default' => '1',
+  ); 
+  db_add_field( 'twilio_user', 'country', $spec);
+}
+
+/**
+ * Enable the twilio_twiml module if necessary.
+ */
+function twilio_update_7002() {
+  $result = db_query('SELECT COUNT(*) FROM {twilio_twiml}')->fetchField();
+  if (!empty($result)) {
+    if (module_enable(array('twilio_twiml'))) {
+      return "Enabled the Twilio Twiml module.";
+    }
+  }
+  return "Twilio Twiml module was not enabled.";
+}
