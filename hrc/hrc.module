@@ -1,0 +1,135 @@
+<?php
+require_once('hrc_terms.class');
+require_once('hrc_settings.class');
+require_once('hrc_admin.inc');
+require_once('rent_due.inc'); 
+ 
+function hrc_form_alter(&$form){
+	//dpm($form);
+}
+
+
+
+
+ /**
+ * Implements hook_init().
+ */
+function hrc_init(){
+	$location = drupal_get_path('module','hrc');
+	drupal_add_js($location . '/hrc.js');
+}
+
+
+
+
+function hrc_theme_registry_alter(&$theme_registry){
+	$theme_registry['views_view_unformatted__rent_due']['theme paths'] = array(0 => drupal_get_path('module', 'hrc') . '/templates');
+	$theme_registry['views_view_unformatted__rent_due']['path'] = drupal_get_path('module', 'hrc') . '/templates';
+	$theme_registry['views_view_unformatted__rent_due']['template'] = 'views-view-unformatted--rent-due';
+	$theme_registry['views_view_unformatted__rent_due']['preprocess functions'] = array(	0 => 'template_preprocess',
+																							1 => 'template_preprocess_views_view_unformatted',
+																							2 => 'contextual_preprocess');
+}
+
+
+
+
+/**
+* Implements hook_menu()
+*/
+function hrc_menu(){
+		$items['admin/hrc/settings'] = array(
+			'title' => 'HRC settings',
+			'page callback' => 'drupal_get_form',
+			'page arguments' => array('hrc_form'),
+			'access arguments' => array('administer users'),
+			'type' => MENU_NORMAL_ITEM,
+ 		);
+
+		//this one calls the function that creates rent due nodes
+		//hrc/rd/1/3 means rend due 1 and lease nid 3
+		$items['hrc/rd/%/%'] = array(
+			'title' => 'rent due',
+			'page callback' => 'new_rd',
+			'page arguments' => array(2,3),
+			'access callback' => 'rd_access',
+			'access arguments' => array(3),
+			'type' => MENU_CALLBACK
+		);
+		
+		$items['hrc/newprop'] = array(
+			'title' => 'enter new property',
+			'page callback' => 'new_property_lease_customer',
+			'access callback' => 'newprop_access',
+			'type' => MENU_CALLBACK
+		);
+return $items;
+}
+
+
+
+
+function rd_access($leaseNid){
+	global $user;
+	$leaseAuthor = node_load($leaseNid)->uid;
+	if($user->uid == 1) return 1;
+	if($user->uid === $leaseAuthor) return 1;
+	return 0;
+}
+
+
+
+
+function newprop_access() {
+  global $user;
+  if($user->uid == 1) return 1;
+  if(in_array('manager',$user->roles)) return 1;
+return 0;
+}
+
+
+
+
+function new_property_lease_customer(){
+	global $user;
+
+	$t1 = new hrc_terms();
+	$hrcTerms = $t1->main();
+	//@todo - need to put watchdog here and return failed to send message
+	if($hrcTerms['zeros'] == 0) return;
+
+	$pnode = new stdClass();
+	$pnode->type = 'property';
+	$pnode->title = 'aProperty';
+	$pnode->status = 1;
+	$pnode->uid = $user->uid;  
+	$pnode->field_manager['und'][0]['target_id'] = $user->uid;
+	$pnode = node_submit($pnode); // Prepare node for saving
+	node_save($pnode);
+
+	$cnode = new stdClass();
+	$cnode->type = 'person';
+	$cnode->title = 'aCustomer';
+	$cnode->status = 1;
+	$cnode->uid = $user->uid;
+	$cnode->field_person_type['und'][0]['tid'] = $hrcTerms['person_types']['customer'];
+	$cnode->uid = $user->uid;  
+	$cnode = node_submit($cnode); // Prepare node for saving
+	node_save($cnode);
+
+	$lnode = new stdClass();
+	$lnode->type = 'lease';
+	$lnode->title = 'aLease';
+	$lnode->status = 1;
+	$lnode->uid = $user->uid;
+	$lnode->field_property['und'][0]['target_id'] = $pnode->nid;
+	$lnode->field_customer['und'][0]['target_id'] = $cnode->nid;
+	$lnode->field_date['und'][0]['value'] = date("Y-m-d",time());
+	$lnode->uid = $user->uid;  
+	$lnode = node_submit($lnode); // Prepare node for saving
+	node_save($lnode);
+
+	drupal_goto('/prop/' . $pnode->nid);
+}
+
+

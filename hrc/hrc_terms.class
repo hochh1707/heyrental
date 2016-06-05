@@ -1,0 +1,91 @@
+<?php
+
+class hrc_terms{
+	
+	public function main(){
+		$hrTerms = $this->get_terms_from_db();	
+	return $hrTerms;
+	}
+
+	private function get_terms_from_db(){
+	//Initially populate with zeros, then we will check later to see if any zeros
+	//remain. 'zeros' will be set to 1 no other zeros remain in the array.
+	$hrTerms = array(	'zeros' => 0,
+						'entry_categories' =>	array(	'buyside' => 0,
+													'insurance' => 0,
+													'late fee' => 0,
+													'maintenance' => 0,
+													'management' => 0,
+													'misc' => 0,
+													'note payment' => 0,
+													'property purchase or sale' => 0,
+													'rent' => 0,
+													'tax' => 0,
+													'utilities' => 0),
+						
+						'entry_types' => 		array(	'expense' => 0,
+														'income' => 0),
+
+						'lease_types' => 		array(	'3mo lease' => 0,
+														'6mo lease' => 0),
+	
+						'message_categories' => array(	'application' => 0,
+														'maintenance' => 0,
+														'payment' => 0,
+														'rent due 1' => 0,
+														'rent due 2' => 0,
+														'rent due 3' => 0,
+														'vacate' => 0),
+	
+						'message_types'	 => 	array(	'incoming' => 0,
+														'outgoing' => 0),
+						
+						'person_types' => 		array(	'customer' => 0,
+														'manager' => 0)
+					);
+					
+	$sql =	"select		tv.vid,
+						tv.machine_name as vocab,
+						td.tid as term_ref,
+						td.name as term
+			from		taxonomy_vocabulary tv
+			join		taxonomy_term_data td on td.vid = tv.vid
+			where		tv.machine_name in (";
+	
+	foreach($hrTerms as $term => $value){
+		if($term == 'zeros') continue;
+		$sql .= "'" . $term . "',";
+	}
+			
+	$sql = substr($sql,0,strlen($sql)-1);
+	$sql .= ')';
+
+	$results = db_query($sql);
+
+	//Copy the taxonomy term target IDs to overwrite the zeros
+	if(!isset($results)) return $hrTerms;
+	
+	foreach($results as $r){
+		$hrTerms[$r->vocab][$r->term] = $r->term_ref;
+	}
+
+	//Check to make sure there are no zeros left
+	$hrTerms = $this->check_for_zeros($hrTerms);
+	
+	return $hrTerms;					
+	}
+
+
+
+
+	private function check_for_zeros($hrTerms){
+		foreach($hrTerms as $i){
+			if($i == 'exist') continue;
+			foreach($i as $j){
+				if($j === 0) return $hrTerms;
+			}
+		}
+	$hrTerms['zeros'] = 1;
+	return $hrTerms;
+	}
+}

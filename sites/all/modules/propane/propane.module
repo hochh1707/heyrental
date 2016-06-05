@@ -1,6 +1,0 @@
-<?php
-
-	
-	function propane_form_alter($form,&$form_state){
-		//dpm($form);
-	}

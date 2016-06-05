@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the heyrental setup feature.
+ */
+
+include_once 'heyrental_setup.features.inc';

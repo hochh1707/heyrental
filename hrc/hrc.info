@@ -1,0 +1,6 @@
+name = hrc
+description = heyrental rent collection
+package = heyrental
+core = 7.x
+version = 7.x-1.0
+stylesheets[all][] = hrc.css

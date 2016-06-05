@@ -1,0 +1,49 @@
+<?php
+
+class hrc_settings{
+
+	public function main(){
+	}
+
+	public function hrc_settings(){
+		$hrcSettings = array();
+		
+		$name = 'url';
+		$default = 'www.heyrental.com';
+		$title = 'URL of your Drupal site';
+		if(variable_get($name) == '') variable_set($name,$default);
+		$value = variable_get($name);
+		$hrcSettings[$name] = array(	'name' => $name,
+								'default' => $default,
+								'title' => $title,
+								'value' => $value,
+								'field_type' => 'textfield'
+								);
+								
+		$name = 'twilio_phone';
+		$default = '';
+		$title = 'Your Twilio phone number';
+		if(variable_get($name) == '') variable_set($name,$default);
+		$value = variable_get($name);
+		$hrcSettings[$name] = array(	'name' => $name,
+								'default' => $default,
+								'title' => $title,
+								'value' => $value,
+								'field_type' => 'textfield'
+								);
+										
+		$name = 'min_time_between_rent_due';
+		$default = '48';
+		$title = 'Min. time before allowing another rent due message (hours)';
+		if(variable_get($name) == '') variable_set($name,$default);
+		$value = variable_get($name);
+		$hrcSettings[$name] = array(	'name' => $name,
+								'default' => $default,
+								'title' => $title,
+								'value' => $value,
+								'field_type' => 'textfield'
+								);
+	return $hrcSettings;
+	}
+	
+}
