@@ -129,7 +129,7 @@ CONFIGURATION AND TESTING
 FUTURE DEVELOPMENT ROADMAP
 --------------------------
 
-* Bugs
+* Bugs and fixes
 Edit js file so it doesn't say hey7
 Test on live
 Add data validation to new property form
@@ -139,6 +139,7 @@ Theme properties view so that whole row is clickable
 Theme add new property and tenant on properties view
 Add "add property" to My properties menu
 Theming for mobile
+Theming for Property view <div style="visibility: hidden;" class="views-row-edit-static">
 
 * Additional features
 Receive messages from tenants that they paid rent
@@ -175,4 +176,16 @@ FUNCTIONS, CLASSES, AND METHODS
 
 MAKING OF HEYRENTAL VIDEOS
 --------------------------
+
+1. Theming a view (rent due) to make a button
+2. Drupal hook menu used to make a node (rent due nodes)
+3. Custom access callbacks with hook menu
+4. Using Features to make a setup module
+5. Modifying Features in code
+6. Jquery get to call a menu callback and get a response
+7. Using Devel module to help create a node in code
+8. Drupal Sql queries in your custom module
+9. Heyrental demo
+10. Getting taxonomy terms in code
+11. Settings for your custom module
 
