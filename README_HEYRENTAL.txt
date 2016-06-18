@@ -130,24 +130,26 @@ FUTURE DEVELOPMENT ROADMAP
 --------------------------
 
 * Bugs and fixes
-Edit js file so it doesn't say hey7
-Test on live
 Add data validation to new property form
 JS for title field of Rent due 1,2,3 view should only affect that view (not My rent due messages)
-Theme rent due messages view so that whole row is clickable
 Theme properties view so that whole row is clickable
 Theme add new property and tenant on properties view
 Add "add property" to My properties menu
 Theming for mobile
-Theming for Property view <div style="visibility: hidden;" class="views-row-edit-static">
+Theming for Property view <div style="visibility: hidden;" class="views-row-edit-static"> to fix hack to editable views
+
+* Incoming messages
+Notify manager when new messages arrive
+Logic to parse what kind of message: payment, maintenance, etc.
+Filter view to show only messages for your properties/tenants
+Some way of handling messages from unknown people
+Display mms on view as photo instead of URL
 
 * Additional features
-Receive messages from tenants that they paid rent
-Receive messages from tenants for maint requests
+-User can set text of rent due messages
+-Rent increase messages
 Vacate notices (PDF, and image)
-Rent increase messages
 Notify local manager to file eviction
-User can set text of rent due messages
 Form for tenant applications
 View to see rent received and enter rent paid
 JS on property view to save without page refresh

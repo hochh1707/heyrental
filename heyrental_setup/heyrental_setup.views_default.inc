@@ -719,6 +719,134 @@ function heyrental_setup_views_default_views() {
   $handler->display->display_options['menu']['context'] = 0;
   $handler->display->display_options['menu']['context_only_inline'] = 0;
   $export['rent_due_1'] = $view;
+  
+  
+  
+  
+    $view = new view();
+  $view->name = 'my_incoming_messages';
+  $view->description = '';
+  $view->tag = 'default';
+  $view->base_table = 'node';
+  $view->human_name = 'My incoming messages';
+  $view->core = 7;
+  $view->api_version = '3.0';
+  $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
 
+  /* Display: Master */
+  $handler = $view->new_display('default', 'Master', 'default');
+  $handler->display->display_options['title'] = 'My incoming messages';
+  $handler->display->display_options['css_class'] = 'mim';
+  $handler->display->display_options['use_more_always'] = FALSE;
+  $handler->display->display_options['access']['type'] = 'perm';
+  $handler->display->display_options['cache']['type'] = 'none';
+  $handler->display->display_options['query']['type'] = 'views_query';
+  $handler->display->display_options['exposed_form']['type'] = 'basic';
+  $handler->display->display_options['pager']['type'] = 'full';
+  $handler->display->display_options['pager']['options']['items_per_page'] = '10';
+  $handler->display->display_options['style_plugin'] = 'default';
+  $handler->display->display_options['row_plugin'] = 'fields';
+  /* Relationship: Entity Reference: Referenced Entity */
+  $handler->display->display_options['relationships']['field_customer_target_id']['id'] = 'field_customer_target_id';
+  $handler->display->display_options['relationships']['field_customer_target_id']['table'] = 'field_data_field_customer';
+  $handler->display->display_options['relationships']['field_customer_target_id']['field'] = 'field_customer_target_id';
+  /* Relationship: Entity Reference: Referencing entity */
+  $handler->display->display_options['relationships']['reverse_field_customer_node']['id'] = 'reverse_field_customer_node';
+  $handler->display->display_options['relationships']['reverse_field_customer_node']['table'] = 'node';
+  $handler->display->display_options['relationships']['reverse_field_customer_node']['field'] = 'reverse_field_customer_node';
+  $handler->display->display_options['relationships']['reverse_field_customer_node']['relationship'] = 'field_customer_target_id';
+  /* Relationship: Entity Reference: Referenced Entity */
+  $handler->display->display_options['relationships']['field_property_target_id']['id'] = 'field_property_target_id';
+  $handler->display->display_options['relationships']['field_property_target_id']['table'] = 'field_data_field_property';
+  $handler->display->display_options['relationships']['field_property_target_id']['field'] = 'field_property_target_id';
+  $handler->display->display_options['relationships']['field_property_target_id']['relationship'] = 'reverse_field_customer_node';
+  /* Field: Content: Nid */
+  $handler->display->display_options['fields']['nid']['id'] = 'nid';
+  $handler->display->display_options['fields']['nid']['table'] = 'node';
+  $handler->display->display_options['fields']['nid']['field'] = 'nid';
+  $handler->display->display_options['fields']['nid']['exclude'] = TRUE;
+  /* Field: Content: Post date */
+  $handler->display->display_options['fields']['created']['id'] = 'created';
+  $handler->display->display_options['fields']['created']['table'] = 'node';
+  $handler->display->display_options['fields']['created']['field'] = 'created';
+  $handler->display->display_options['fields']['created']['label'] = 'Date received';
+  $handler->display->display_options['fields']['created']['date_format'] = 'short';
+  $handler->display->display_options['fields']['created']['second_date_format'] = 'long';
+  /* Field: Content: first name */
+  $handler->display->display_options['fields']['field_first_name']['id'] = 'field_first_name';
+  $handler->display->display_options['fields']['field_first_name']['table'] = 'field_data_field_first_name';
+  $handler->display->display_options['fields']['field_first_name']['field'] = 'field_first_name';
+  $handler->display->display_options['fields']['field_first_name']['relationship'] = 'field_customer_target_id';
+  $handler->display->display_options['fields']['field_first_name']['exclude'] = TRUE;
+  $handler->display->display_options['fields']['field_first_name']['group_column'] = 'entity_id';
+  /* Field: Content: address - Thoroughfare (i.e. Street address) */
+  $handler->display->display_options['fields']['field_address_thoroughfare']['id'] = 'field_address_thoroughfare';
+  $handler->display->display_options['fields']['field_address_thoroughfare']['table'] = 'field_data_field_address';
+  $handler->display->display_options['fields']['field_address_thoroughfare']['field'] = 'field_address_thoroughfare';
+  $handler->display->display_options['fields']['field_address_thoroughfare']['relationship'] = 'field_property_target_id';
+  $handler->display->display_options['fields']['field_address_thoroughfare']['label'] = 'Property';
+  /* Field: Content: last name */
+  $handler->display->display_options['fields']['field_last_name']['id'] = 'field_last_name';
+  $handler->display->display_options['fields']['field_last_name']['table'] = 'field_data_field_last_name';
+  $handler->display->display_options['fields']['field_last_name']['field'] = 'field_last_name';
+  $handler->display->display_options['fields']['field_last_name']['relationship'] = 'field_customer_target_id';
+  $handler->display->display_options['fields']['field_last_name']['label'] = 'Name';
+  $handler->display->display_options['fields']['field_last_name']['alter']['alter_text'] = TRUE;
+  $handler->display->display_options['fields']['field_last_name']['alter']['text'] = '[field_first_name] [field_last_name]';
+  /* Field: Content: mobile */
+  $handler->display->display_options['fields']['field_mobile']['id'] = 'field_mobile';
+  $handler->display->display_options['fields']['field_mobile']['table'] = 'field_data_field_mobile';
+  $handler->display->display_options['fields']['field_mobile']['field'] = 'field_mobile';
+  $handler->display->display_options['fields']['field_mobile']['label'] = 'Mobile';
+  /* Field: Content: message category */
+  $handler->display->display_options['fields']['field_message_category']['id'] = 'field_message_category';
+  $handler->display->display_options['fields']['field_message_category']['table'] = 'field_data_field_message_category';
+  $handler->display->display_options['fields']['field_message_category']['field'] = 'field_message_category';
+  $handler->display->display_options['fields']['field_message_category']['label'] = 'category';
+  $handler->display->display_options['fields']['field_message_category']['type'] = 'taxonomy_term_reference_plain';
+  /* Field: Content: sms */
+  $handler->display->display_options['fields']['field_sms']['id'] = 'field_sms';
+  $handler->display->display_options['fields']['field_sms']['table'] = 'field_data_field_sms';
+  $handler->display->display_options['fields']['field_sms']['field'] = 'field_sms';
+  /* Field: Content: mms */
+  $handler->display->display_options['fields']['field_mms']['id'] = 'field_mms';
+  $handler->display->display_options['fields']['field_mms']['table'] = 'field_data_field_mms';
+  $handler->display->display_options['fields']['field_mms']['field'] = 'field_mms';
+  /* Sort criterion: Content: Post date */
+  $handler->display->display_options['sorts']['created']['id'] = 'created';
+  $handler->display->display_options['sorts']['created']['table'] = 'node';
+  $handler->display->display_options['sorts']['created']['field'] = 'created';
+  $handler->display->display_options['sorts']['created']['order'] = 'DESC';
+  /* Filter criterion: Content: Published */
+  $handler->display->display_options['filters']['status']['id'] = 'status';
+  $handler->display->display_options['filters']['status']['table'] = 'node';
+  $handler->display->display_options['filters']['status']['field'] = 'status';
+  $handler->display->display_options['filters']['status']['value'] = 1;
+  $handler->display->display_options['filters']['status']['group'] = 1;
+  $handler->display->display_options['filters']['status']['expose']['operator'] = FALSE;
+  /* Filter criterion: Content: Type */
+  $handler->display->display_options['filters']['type']['id'] = 'type';
+  $handler->display->display_options['filters']['type']['table'] = 'node';
+  $handler->display->display_options['filters']['type']['field'] = 'type';
+  $handler->display->display_options['filters']['type']['value'] = array(
+    'message' => 'message',
+  );
+  /* Filter criterion: Content: message type (field_message_type) */
+  $handler->display->display_options['filters']['field_message_type_tid']['id'] = 'field_message_type_tid';
+  $handler->display->display_options['filters']['field_message_type_tid']['table'] = 'field_data_field_message_type';
+  $handler->display->display_options['filters']['field_message_type_tid']['field'] = 'field_message_type_tid';
+  $handler->display->display_options['filters']['field_message_type_tid']['value'] = array(
+    0 => '1',
+  );
+  $handler->display->display_options['filters']['field_message_type_tid']['vocabulary'] = 'message_types';
+
+  /* Display: Page */
+  $handler = $view->new_display('page', 'Page', 'page');
+  $handler->display->display_options['path'] = 'my-incoming-messages';
+  $export['my_incoming_messages'] = $view;
+  
+  
+  
+  
   return $export;
 }

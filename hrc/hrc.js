@@ -12,8 +12,8 @@
 		$(".views-field-title").click(function(){
 			$(this).attr('style', 'background-color: #f0f0f0 !important');
 			leaseNid = $(this).parent().attr('id');
-			rentDueURL = 'http://' + window.location.hostname + '/hey7/hrc/rd/' + rdType + '/' + $(this).parent().attr('id');
-			
+			rentDueURL = 'http://' + window.location.hostname + '/hrc/rd/' + rdType + '/' + $(this).parent().attr('id');
+			//alert(rentDueURL);
 			$.get	(	rentDueURL,
 						function(msgResult) {buttonColor(msgResult,leaseNid);}
 					);

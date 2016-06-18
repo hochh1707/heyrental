@@ -3,14 +3,14 @@
 class hrc_terms{
 	
 	public function main(){
-		$hrTerms = $this->get_terms_from_db();	
-	return $hrTerms;
+		$hrcTerms = $this->get_terms_from_db();	
+	return $hrcTerms;
 	}
 
 	private function get_terms_from_db(){
 	//Initially populate with zeros, then we will check later to see if any zeros
 	//remain. 'zeros' will be set to 1 no other zeros remain in the array.
-	$hrTerms = array(	'zeros' => 0,
+	$hrcTerms = array(	'zeros' => 0,
 						'entry_categories' =>	array(	'buyside' => 0,
 													'insurance' => 0,
 													'late fee' => 0,
@@ -52,7 +52,7 @@ class hrc_terms{
 			join		taxonomy_term_data td on td.vid = tv.vid
 			where		tv.machine_name in (";
 	
-	foreach($hrTerms as $term => $value){
+	foreach($hrcTerms as $term => $value){
 		if($term == 'zeros') continue;
 		$sql .= "'" . $term . "',";
 	}
@@ -63,29 +63,29 @@ class hrc_terms{
 	$results = db_query($sql);
 
 	//Copy the taxonomy term target IDs to overwrite the zeros
-	if(!isset($results)) return $hrTerms;
+	if(!isset($results)) return $hrcTerms;
 	
 	foreach($results as $r){
-		$hrTerms[$r->vocab][$r->term] = $r->term_ref;
+		$hrcTerms[$r->vocab][$r->term] = $r->term_ref;
 	}
 
 	//Check to make sure there are no zeros left
-	$hrTerms = $this->check_for_zeros($hrTerms);
+	$hrcTerms = $this->check_for_zeros($hrcTerms);
 	
-	return $hrTerms;					
+	return $hrcTerms;					
 	}
 
 
 
 
-	private function check_for_zeros($hrTerms){
-		foreach($hrTerms as $i){
+	private function check_for_zeros($hrcTerms){
+		foreach($hrcTerms as $i){
 			if($i == 'exist') continue;
 			foreach($i as $j){
-				if($j === 0) return $hrTerms;
+				if($j === 0) return $hrcTerms;
 			}
 		}
-	$hrTerms['zeros'] = 1;
-	return $hrTerms;
+	$hrcTerms['zeros'] = 1;
+	return $hrcTerms;
 	}
 }
